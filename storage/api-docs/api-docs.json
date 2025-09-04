@@ -168,28 +168,128 @@
                 }
             }
         },
-        "/api/comments": {
+        "/api/posts/{id}/comments": {
+            "get": {
+                "tags": [
+                    "Comments"
+                ],
+                "summary": "Get all comments of a post",
+                "description": "Get all comments for a post",
+                "operationId": "6a180e5daab7712fa6b5ec44048b1f7e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Post ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of comments with count",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "post_id": {
+                                            "type": "integer",
+                                            "example": 21
+                                        },
+                                        "comments_count": {
+                                            "type": "integer",
+                                            "example": 5
+                                        },
+                                        "comments": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "comment_text": {
+                                                        "type": "string",
+                                                        "example": "Nice post!"
+                                                    },
+                                                    "user_id": {
+                                                        "type": "integer",
+                                                        "example": 3
+                                                    },
+                                                    "post_id": {
+                                                        "type": "integer",
+                                                        "example": 21
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "example": "2025-09-04T10:15:30Z"
+                                                    },
+                                                    "updated_at": {
+                                                        "type": "string",
+                                                        "example": "2025-09-04T10:15:30Z"
+                                                    },
+                                                    "user": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 3
+                                                            },
+                                                            "name": {
+                                                                "type": "string",
+                                                                "example": "Abdul Hanan"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "post": {
                 "tags": [
                     "Comments"
                 ],
-                "summary": "Add a comment",
-                "operationId": "c6ce2c222c8502aadd6a287105e49307",
+                "summary": "Add a comment to a post",
+                "description": "Add a comment to a post",
+                "operationId": "0b64ff2dcbaf28633a30ccdb1c7f63ea",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Post ID to comment on",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "post_id",
                                     "comment_text"
                                 ],
                                 "properties": {
-                                    "post_id": {
-                                        "type": "integer"
-                                    },
                                     "comment_text": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "Nice post!"
                                     }
                                 },
                                 "type": "object"
@@ -200,6 +300,12 @@
                 "responses": {
                     "201": {
                         "description": "Comment added successfully"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     }
                 },
                 "security": [
@@ -209,17 +315,19 @@
                 ]
             }
         },
-        "/api/comment/{id}": {
+        "/api/comments/{id}": {
             "put": {
                 "tags": [
                     "Comments"
                 ],
                 "summary": "Update a comment",
-                "operationId": "db9cd2f259ab73d95aa07c3113a94de1",
+                "description": "Update a comment",
+                "operationId": "17f16fb86b3722d33c54e6d165a02c80",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
+                        "description": "Comment ID to update",
                         "required": true,
                         "schema": {
                             "type": "integer"
@@ -227,12 +335,17 @@
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
+                                "required": [
+                                    "comment_text"
+                                ],
                                 "properties": {
                                     "comment_text": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "Updated comment text"
                                     }
                                 },
                                 "type": "object"
@@ -243,6 +356,12 @@
                 "responses": {
                     "200": {
                         "description": "Comment updated successfully"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation failed"
                     }
                 },
                 "security": [
@@ -256,11 +375,13 @@
                     "Comments"
                 ],
                 "summary": "Delete a comment",
-                "operationId": "a07938209abccc0b9ff208c4e6622d5b",
+                "description": "Delete a comment",
+                "operationId": "b683c30a239aa780ffc7e9b219e90811",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
+                        "description": "Comment ID to delete",
                         "required": true,
                         "schema": {
                             "type": "integer"
@@ -270,6 +391,12 @@
                 "responses": {
                     "200": {
                         "description": "Comment deleted successfully"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Comment not found"
                     }
                 },
                 "security": [
@@ -376,25 +503,30 @@
                 "tags": [
                     "Media"
                 ],
-                "summary": "Upload new media",
+                "summary": "Upload new media and optionally attach to a post",
                 "operationId": "9430980f10901899bfff1032ecc021e2",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
                                     "media_type",
-                                    "url"
+                                    "file"
                                 ],
                                 "properties": {
                                     "media_type": {
                                         "type": "string",
                                         "example": "image"
                                     },
-                                    "url": {
+                                    "file": {
+                                        "description": "The image file to upload",
                                         "type": "string",
-                                        "example": "https://example.com/image.jpg"
+                                        "format": "binary"
+                                    },
+                                    "post_id": {
+                                        "type": "integer",
+                                        "example": 1
                                     }
                                 },
                                 "type": "object"
@@ -472,7 +604,15 @@
                 "operationId": "47c7fdf2d7c310a8e2f106f2b6c31514",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "postId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "mediaId",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -514,6 +654,16 @@
                                     "description": {
                                         "type": "string",
                                         "example": "This is my first post"
+                                    },
+                                    "media_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "example": [
+                                            1,
+                                            2
+                                        ]
                                     }
                                 },
                                 "type": "object"
@@ -523,7 +673,23 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Post created successfully"
+                        "description": "Post created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Post added Successfully"
+                                        },
+                                        "post": {
+                                            "$ref": "#/components/schemas/Post"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -629,10 +795,70 @@
                     }
                 ]
             }
+        },
+        "/api/allposts": {
+            "get": {
+                "tags": [
+                    "Posts"
+                ],
+                "summary": "Get all posts",
+                "operationId": "8fcb80ebcd92b01ea7a5a7f16a870d86",
+                "responses": {
+                    "200": {
+                        "description": "Posts retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Post"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
         "schemas": {
+            "Post": {
+                "title": "Post",
+                "required": [
+                    "id",
+                    "user_id",
+                    "description"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "user_id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "This is my first post"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
             "Media": {
                 "title": "Media",
                 "description": "Media model",
@@ -685,7 +911,7 @@
         },
         {
             "name": "Comments",
-            "description": "Comment management"
+            "description": "Comment management for posts"
         },
         {
             "name": "Likes",

@@ -15,19 +15,6 @@ use Illuminate\Support\Facades\Validator;
  */
 class MediaController extends Controller
 {
-    // /**
-    //  * @OA\Get(
-    //  *     path="/api/media",
-    //  *     tags={"Media"},
-    //  *     summary="Get all media",
-    //  *     security={{"bearerAuth":{}}},
-    //  *     @OA\Response(
-    //  *         response=200,
-    //  *         description="List of media",
-    //  *         @OA\JsonContent(type="array", @OA\Items(ref="#/components/schemas/Media"))
-    //  *     )
-    //  * )
-    //  */
     public function index()
     {
         $media = Media::all();
@@ -38,14 +25,23 @@ class MediaController extends Controller
      * @OA\Post(
      *     path="/api/media",
      *     tags={"Media"},
-     *     summary="Upload new media",
+     *     summary="Upload new media and optionally attach to a post",
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\JsonContent(
-     *             required={"media_type","url"},
-     *             @OA\Property(property="media_type", type="string", example="image"),
-     *             @OA\Property(property="url", type="string", example="https://example.com/image.jpg")
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 required={"media_type","file"},
+     *                 @OA\Property(property="media_type", type="string", example="image"),
+     *                 @OA\Property(
+     *                     property="file",
+     *                     type="string",
+     *                     format="binary",
+     *                     description="The image file to upload"
+     *                 ),
+     *                 @OA\Property(property="post_id", type="integer", example=1)
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -60,19 +56,29 @@ class MediaController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'media_type' => 'required|string',
-            'url' => 'required|url',
+            'file' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'post_id' => 'nullable|integer|exists:posts,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 400);
         }
 
+        // ✅ Store file inside storage/app/public/media
+        $path = $request->file('file')->store('media', 'public');
+        $url = asset('storage/' . $path);
+
         $media = Media::create([
             'media_type' => $request->media_type,
-            'url' => $request->url,
+            'url' => $url, // save public URL in DB
         ]);
 
-        return response()->json($media, 201);
+        // Attach to post if post_id provided
+        if ($request->filled('post_id')) {
+            $media->posts()->attach($request->post_id);
+        }
+
+        return response()->json($media->load('posts'), 201);
     }
 
     /**
@@ -113,7 +119,13 @@ class MediaController extends Controller
      *     summary="Delete media by ID",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
-     *         name="id",
+     *         name="postId",
+     *         in="path",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="mediaId",
      *         in="path",
      *         required=true,
      *         @OA\Schema(type="integer")
@@ -122,11 +134,11 @@ class MediaController extends Controller
      *     @OA\Response(response=404, description="Media not found")
      * )
      */
-    public function destroy($id, $mediaId)
+    public function destroy($postId, $mediaId)
     {
         $media = Media::where('id', $mediaId)
-            ->whereHas('posts', function ($q) use ($id) {
-                $q->where('posts.id', $id);
+            ->whereHas('posts', function ($q) use ($postId) {
+                $q->where('posts.id', $postId);
             })
             ->first();
 

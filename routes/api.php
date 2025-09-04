@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
@@ -14,7 +13,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // 🔹 Protected routes
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     // Get authenticated user
     Route::get('/user', function (Request $request) {
         return $request->user();
@@ -25,14 +24,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts/{id}', [PostController::class, 'show']);          // Get post by id
     Route::put('/posts/{id}', [PostController::class, 'update']);        // Update post
     Route::delete('/posts/{id}', [PostController::class, 'destroy']);    // Delete post
+    Route::get('/allposts', [PostController::class, 'index']); // Fetch all posts
 
-// 🔹 Media
-Route::post('/media', [MediaController::class, 'store']);                  // Upload media
-Route::get('/posts/{id}/media', [MediaController::class, 'index']);
-Route::get('/media/{id}', [MediaController::class, 'show']); // Get single media by id
-        // Get all media of a post
-Route::delete('/posts/{postId}/media/{mediaId}', [MediaController::class, 'destroy']);
- // Remove media from a post
+
+    // 🔹 Media
+    Route::post('/media', [MediaController::class, 'store']);                  // Upload media
+    Route::get('/posts/{id}/media', [MediaController::class, 'index']);
+    Route::get('/media/{id}', [MediaController::class, 'show']); // Get single media by id
+    // Get all media of a post
+    Route::delete('/posts/{postId}/media/{mediaId}', [MediaController::class, 'destroy']);
+    // Remove media from a post
 
 
     // 🔹 Likes
@@ -41,7 +42,8 @@ Route::delete('/posts/{postId}/media/{mediaId}', [MediaController::class, 'destr
     Route::get('/posts/{id}/likes', [LikeController::class, 'index']);   // List likes of a post
 
     // 🔹 Comments
-    Route::post('/comments', [CommentController::class, 'store']);       // Add comment
-    Route::put('/comment/{id}', [CommentController::class, 'update']);   // Update comment
-    Route::delete('/comment/{id}', [CommentController::class, 'destroy']); // Delete comment
+    Route::get('/posts/{id}/comments', [CommentController::class, 'index']);   // Get all comments + count for a post
+    Route::post('/posts/{id}/comments', [CommentController::class, 'store']);  // Add comment to a post
+    Route::put('/comments/{id}', [CommentController::class, 'update']);        // Update comment
+    Route::delete('/comments/{id}', [CommentController::class, 'destroy']);    // Delete commentt
 });

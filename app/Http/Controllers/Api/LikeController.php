@@ -96,8 +96,12 @@ class LikeController extends Controller
      * )
      */
     public function index($id)
-    {
-        $likes = Like::with('user')->where('post_id', $id)->get();
-        return response()->json($likes, 200);
-    }
+{
+    $count = Like::where('post_id', $id)->count();
+
+    return response()->json([
+        'post_id' => $id,
+        'likes_count' => $count
+    ], 200);
+}
 }

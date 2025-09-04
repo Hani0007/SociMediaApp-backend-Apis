@@ -7,6 +7,21 @@ use Illuminate\Http\Request;
 use App\Models\Post;
 use Illuminate\Support\Facades\Auth;
 
+
+/**
+ * @OA\Schema(
+ *     schema="Post",
+ *     type="object",
+ *     title="Post",
+ *     required={"id", "user_id", "description"},
+ *     @OA\Property(property="id", type="integer", example=1),
+ *     @OA\Property(property="user_id", type="integer", example=2),
+ *     @OA\Property(property="description", type="string", example="This is my first post"),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time")
+ * )
+ */
+
 class PostController extends Controller
 {
     /**
@@ -19,16 +34,31 @@ class PostController extends Controller
      *         required=true,
      *         @OA\JsonContent(
      *             required={"description"},
-     *             @OA\Property(property="description", type="string", example="This is my first post")
+     *             @OA\Property(property="description", type="string", example="This is my first post"),
+     *             @OA\Property(
+     *                 property="media_ids",
+     *                 type="array",
+     *                 @OA\Items(type="integer"),
+     *                 example={1, 2}
+     *             )
      *         )
      *     ),
-     *     @OA\Response(response=201, description="Post created successfully")
+     *     @OA\Response(
+     *         response=201,
+     *         description="Post created successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Post added Successfully"),
+     *             @OA\Property(property="post", ref="#/components/schemas/Post")
+     *         )
+     *     )
      * )
      */
     public function store(Request $request)
     {
         $request->validate([
             'description' => 'required|string',
+            'media_ids' => 'nullable|array',
+            'media_ids.*' => 'integer|exists:media,id',
         ]);
 
         $post = Post::create([
@@ -36,7 +66,15 @@ class PostController extends Controller
             'description' => $request->description,
         ]);
 
-        return response()->json(['message' => 'Post added Successfully', 'post' => $post], 201);
+        // Attach media if provided
+        if ($request->filled('media_ids')) {
+            $post->media()->attach($request->media_ids);
+        }
+
+        return response()->json([
+            'message' => 'Post added Successfully',
+            'post' => $post->load('media') // eager load attached media
+        ], 201);
     }
 
     /**
@@ -93,25 +131,51 @@ class PostController extends Controller
      * )
      */
     public function destroy($id)
-{
-    try {
-        $post = Post::where('user_id', Auth::id())->findOrFail($id);
-        $post->delete();
+    {
+        try {
+            $post = Post::where('user_id', Auth::id())->findOrFail($id);
+            $post->delete();
 
-        return response()->json([
-            'message' => 'Post deleted successfully'
-        ], 200);
+            return response()->json([
+                'message' => 'Post deleted successfully'
+            ], 200);
 
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'message' => 'Post already deleted or not found'
-        ], 404);
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'Something went wrong',
-            'error' => $e->getMessage()
-        ], 500);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Post already deleted or not found'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
+
+    /**
+ * @OA\Get(
+ *     path="/api/allposts",
+ *     tags={"Posts"},
+ *     summary="Get all posts",
+ *     security={{"bearerAuth":{}}},
+ *     @OA\Response(
+ *         response=200,
+ *         description="Posts retrieved successfully",
+ *         @OA\JsonContent(
+ *             type="array",
+ *             @OA\Items(ref="#/components/schemas/Post")
+ *         )
+ *     )
+ * )
+ */
+public function index()
+{
+    // Fetch all posts with user and media (eager loading)
+    $posts = Post::with(['user', 'media'])
+                 ->orderBy('created_at', 'desc')
+                 ->get();
+
+    return response()->json($posts, 200);
 }
 
 }
