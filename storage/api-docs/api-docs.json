@@ -890,12 +890,6 @@
             }
         },
         "securitySchemes": {
-            "bearerAuth": {
-                "type": "http",
-                "description": "Enter token in format: Bearer {token}",
-                "bearerFormat": "JWT",
-                "scheme": "bearer"
-            },
             "sanctum": {
                 "type": "apiKey",
                 "description": "Enter token in format (Bearer <token>)",
@@ -905,10 +899,6 @@
         }
     },
     "tags": [
-        {
-            "name": "Auth",
-            "description": "Authentication endpoints"
-        },
         {
             "name": "Comments",
             "description": "Comment management for posts"
@@ -920,6 +910,10 @@
         {
             "name": "Media",
             "description": "Media management"
+        },
+        {
+            "name": "Auth",
+            "description": "Auth"
         },
         {
             "name": "Posts",

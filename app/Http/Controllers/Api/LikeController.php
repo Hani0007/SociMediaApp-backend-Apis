@@ -4,8 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Like;
-use Illuminate\Support\Facades\Auth;
+use App\Services\LikeService;
 
 /**
  * @OA\Tag(
@@ -15,6 +14,13 @@ use Illuminate\Support\Facades\Auth;
  */
 class LikeController extends Controller
 {
+    protected $likeService;
+
+    public function __construct(LikeService $likeService)
+    {
+        $this->likeService = $likeService;
+    }
+
     /**
      * @OA\Post(
      *     path="/api/like",
@@ -34,10 +40,7 @@ class LikeController extends Controller
     {
         $request->validate(['post_id' => 'required|exists:posts,id']);
 
-        $like = Like::firstOrCreate([
-            'user_id' => Auth::id(),
-            'post_id' => $request->post_id,
-        ]);
+        $like = $this->likeService->likePost($request->post_id);
 
         return response()->json(['message' => 'Liked Successfully', 'like' => $like], 201);
     }
@@ -57,28 +60,14 @@ class LikeController extends Controller
      *     @OA\Response(response=200, description="Unlike successful")
      * )
      */
-  public function destroy($id)
-{
-    try {
-        $like = Like::where('user_id', Auth::id())->findOrFail($id);
-        $like->delete();
+    public function destroy($id)
+    {
+        $this->likeService->unlikePost($id);
 
         return response()->json([
             'message' => 'Unlike successfully'
         ], 200);
-
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'message' => 'Like already removed or not found'
-        ], 404);
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'Something went wrong',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
-
 
     /**
      * @OA\Get(
@@ -96,12 +85,12 @@ class LikeController extends Controller
      * )
      */
     public function index($id)
-{
-    $count = Like::where('post_id', $id)->count();
+    {
+        $count = $this->likeService->getLikesCount($id);
 
-    return response()->json([
-        'post_id' => $id,
-        'likes_count' => $count
-    ], 200);
-}
+        return response()->json([
+            'post_id' => $id,
+            'likes_count' => $count
+        ], 200);
+    }
 }

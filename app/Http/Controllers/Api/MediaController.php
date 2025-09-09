@@ -4,21 +4,36 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Media;
+use App\Services\MediaService;
 use Illuminate\Support\Facades\Validator;
 
 /**
  * @OA\Tag(
  *     name="Media",
- *     description="Media management"
+ *     description="Media management for posts"
  * )
  */
 class MediaController extends Controller
 {
+    protected $mediaService;
+
+    public function __construct(MediaService $mediaService)
+    {
+        $this->mediaService = $mediaService;
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/media",
+     *     tags={"Media"},
+     *     summary="Get all media",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(response=200, description="List of all media")
+     * )
+     */
     public function index()
     {
-        $media = Media::all();
-        return response()->json($media, 200);
+        return response()->json($this->mediaService->getAllMedia(), 200);
     }
 
     /**
@@ -34,22 +49,13 @@ class MediaController extends Controller
      *             @OA\Schema(
      *                 required={"media_type","file"},
      *                 @OA\Property(property="media_type", type="string", example="image"),
-     *                 @OA\Property(
-     *                     property="file",
-     *                     type="string",
-     *                     format="binary",
-     *                     description="The image file to upload"
-     *                 ),
+     *                 @OA\Property(property="file", type="string", format="binary", description="The image file to upload"),
      *                 @OA\Property(property="post_id", type="integer", example=1)
      *             )
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=201,
-     *         description="Media uploaded successfully",
-     *         @OA\JsonContent(ref="#/components/schemas/Media")
-     *     ),
-     *     @OA\Response(response=400, description="Validation error")
+     *     @OA\Response(response=201, description="Media uploaded successfully"),
+     *     @OA\Response(response=422, description="Validation failed")
      * )
      */
     public function store(Request $request)
@@ -61,21 +67,13 @@ class MediaController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 400);
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // ✅ Store file inside storage/app/public/media
-        $path = $request->file('file')->store('media', 'public');
-        $url = asset('storage/' . $path);
+        $media = $this->mediaService->uploadMedia($request->file('file'), $request->media_type);
 
-        $media = Media::create([
-            'media_type' => $request->media_type,
-            'url' => $url, // save public URL in DB
-        ]);
-
-        // Attach to post if post_id provided
         if ($request->filled('post_id')) {
-            $media->posts()->attach($request->post_id);
+            $this->mediaService->attachMediaToPost($media->id, $request->post_id);
         }
 
         return response()->json($media->load('posts'), 201);
@@ -91,24 +89,16 @@ class MediaController extends Controller
      *         name="id",
      *         in="path",
      *         required=true,
+     *         description="Media ID",
      *         @OA\Schema(type="integer")
      *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="Media details",
-     *         @OA\JsonContent(ref="#/components/schemas/Media")
-     *     ),
+     *     @OA\Response(response=200, description="Media details"),
      *     @OA\Response(response=404, description="Media not found")
      * )
      */
     public function show($id)
     {
-        $media = Media::find($id);
-
-        if (!$media) {
-            return response()->json(['message' => 'Media not found'], 404);
-        }
-
+        $media = $this->mediaService->getMedia($id);
         return response()->json($media, 200);
     }
 
@@ -116,38 +106,32 @@ class MediaController extends Controller
      * @OA\Delete(
      *     path="/api/posts/{postId}/media/{mediaId}",
      *     tags={"Media"},
-     *     summary="Delete media by ID",
+     *     summary="Delete media attached to a post",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="postId",
      *         in="path",
      *         required=true,
+     *         description="Post ID",
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Parameter(
      *         name="mediaId",
      *         in="path",
      *         required=true,
+     *         description="Media ID",
      *         @OA\Schema(type="integer")
      *     ),
      *     @OA\Response(response=200, description="Media deleted successfully"),
-     *     @OA\Response(response=404, description="Media not found")
+     *     @OA\Response(response=404, description="Media not found for this post")
      * )
      */
     public function destroy($postId, $mediaId)
     {
-        $media = Media::where('id', $mediaId)
-            ->whereHas('posts', function ($q) use ($postId) {
-                $q->where('posts.id', $postId);
-            })
-            ->first();
+        $this->mediaService->deleteMedia($mediaId, $postId);
 
-        if (!$media) {
-            return response()->json(['message' => 'Media not found for this post'], 404);
-        }
-
-        $media->delete();
-
-        return response()->json(['message' => 'Media deleted successfully']);
+        return response()->json([
+            'message' => 'Media deleted successfully'
+        ], 200);
     }
 }

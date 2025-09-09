@@ -4,8 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use App\Services\AuthService;
+
+/**
+ * @OA\Tag(
+ *     name="Auth",
+ *     description="Authentication endpoints"
+ * )
+ */
 
 /**
  * @OA\Info(
@@ -19,22 +25,20 @@ use Illuminate\Support\Facades\Hash;
  *      url=L5_SWAGGER_CONST_HOST,
  *      description="Local API Server"
  * )
- *
- * @OA\SecurityScheme(
- *     securityScheme="bearerAuth",
- *     type="http",
- *     scheme="bearer",
- *     bearerFormat="JWT",
- *     description="Enter token in format: Bearer {token}"
- * )
- *
- * @OA\Tag(
- *     name="Auth",
- *     description="Authentication endpoints"
- * )
  */
+
+
+
 class AuthController extends Controller
 {
+    private AuthService $authService;
+
+    // Inject AuthService instead of handling logic directly
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     /**
      * @OA\Post(
      *     path="/api/register",
@@ -69,27 +73,19 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        $request->validate([
+        // ✅ Validate input before passing to service
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'confirmPassword' => 'required|same:password',
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        // ✅ Delegate business logic to service
+        $response = $this->authService->register($validated);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Registered Successfully',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user,
-        ], 201);
+        // ✅ Return service response
+        return response()->json($response, 201);
     }
 
     /**
@@ -127,24 +123,20 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        $request->validate([
+        // ✅ Validate input
+        $validated = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        // ✅ Delegate to service
+        $response = $this->authService->login($validated);
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        // If service returns null → invalid credentials
+        if (!$response) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Login Successful',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user,
-        ], 200);
+        return response()->json($response, 200);
     }
 }

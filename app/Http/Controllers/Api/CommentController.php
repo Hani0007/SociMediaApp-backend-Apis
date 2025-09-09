@@ -4,8 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Comment;
-use Illuminate\Support\Facades\Auth;
+use App\Services\CommentService;
 
 /**
  * @OA\Tag(
@@ -15,6 +14,13 @@ use Illuminate\Support\Facades\Auth;
  */
 class CommentController extends Controller
 {
+    protected $commentService;
+
+    public function __construct(CommentService $commentService)
+    {
+        $this->commentService = $commentService;
+    }
+
     /**
      * Add a comment to a post
      *
@@ -42,19 +48,13 @@ class CommentController extends Controller
      *     @OA\Response(response=401, description="Unauthorized")
      * )
      */
-    public function store(Request $request, $id)
+    public function store(Request $request, $postId)
     {
-        // Validate the request
-        $request->validate([
+        $data = $request->validate([
             'comment_text' => 'required|string|max:255',
         ]);
 
-        // Create a comment
-        $comment = Comment::create([
-            'user_id' => Auth::id(),
-            'post_id' => $id,
-            'comment_text' => $request->comment_text,
-        ]);
+        $comment = $this->commentService->addComment($postId, $data['comment_text']);
 
         return response()->json([
             'message' => 'Comment added successfully',
@@ -91,13 +91,11 @@ class CommentController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $request->validate([
+        $data = $request->validate([
             'comment_text' => 'required|string|max:255',
         ]);
 
-        // Only allow updating your own comments
-        $comment = Comment::where('user_id', Auth::id())->findOrFail($id);
-        $comment->update(['comment_text' => $request->comment_text]);
+        $comment = $this->commentService->updateComment($id, $data['comment_text']);
 
         return response()->json([
             'message' => 'Comment updated successfully',
@@ -127,8 +125,7 @@ class CommentController extends Controller
      */
     public function destroy($id)
     {
-        $comment = Comment::where('user_id', Auth::id())->findOrFail($id);
-        $comment->delete();
+        $this->commentService->deleteComment($id);
 
         return response()->json([
             'message' => 'Comment deleted successfully',
@@ -178,16 +175,13 @@ class CommentController extends Controller
      *     )
      * )
      */
-    public function index($id)
+    public function index($postId)
     {
-        $comments = Comment::with('user')
-            ->where('post_id', $id)
-            ->latest()
-            ->get();
+        $comments = $this->commentService->getCommentsByPost($postId);
 
         return response()->json([
-            'post_id' => $id,
-            'comments_count' => $comments->count(),
+            'post_id' => $postId,
+            'comments_count' => count($comments),
             'comments' => $comments,
         ], 200);
     }

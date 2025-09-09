@@ -4,6 +4,7 @@ return [
     'default' => 'default',
 
     'documentations' => [
+
         'default' => [
             'api' => [
                 'title' => 'My Application API',
@@ -22,9 +23,13 @@ return [
                 'docs_yaml' => 'api-docs.yaml',
                 'format_to_use_for_docs' => env('L5_FORMAT_TO_USE_FOR_DOCS', 'json'),
                 'annotations' => [
-                    base_path('app'), // Scan all controllers in app/
+                 base_path('app/Http/Controllers/Api'), // only scan your API controllers
+                  base_path('app/Models'),   
                 ],
             ],
+
+        'generate_always' => true, // ✅ Place it here inside 'default'   
+            
         ],
     ],
 
