@@ -7,18 +7,18 @@
     <div class="flex-1 md:ml-64 px-4 sm:px-6 pb-20 md:pb-6">
       <div class="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8 py-6">
 
-<FeedSection 
-  :posts="posts" 
-  :currentUser="currentUser" 
-  :error="error"
-  @edit-post="editPost"
-  @update-post="updatePost"
-  @delete-post="deletePost"
-  @toggle-like="toggleLike"
-  @submit-comment="submitComment"
-  @update-comment="updateComment"
-  @delete-comment="deleteComment"
-/>
+        <FeedSection 
+          :posts="posts" 
+          :currentUser="currentUser" 
+          :error="error"
+          @edit-post="editPost"
+          @update-post="updatePost"
+          @delete-post="deletePost"
+          @toggle-like="toggleLike"
+          @submit-comment="submitComment"
+          @update-comment="updateComment"
+          @delete-comment="deleteComment"
+        />
 
 
 
