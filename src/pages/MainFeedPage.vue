@@ -64,7 +64,18 @@ import CreatePostModal from "@/components/CreatePostModal.vue"
 import FeedSection from '@/components/FeedSection.vue'
 import { ref, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
-import axios from "axios"
+
+// ✅ Import API methods
+import {
+  fetchPostsApi,
+  updatePostApi,
+  deletePostApi,
+  likePostApi,
+  unlikePostApi,
+  addCommentApi,
+  updateCommentApi,
+  deleteCommentApi
+} from "@/api/api"
 
 const router = useRouter()
 const posts = ref([])
@@ -85,7 +96,6 @@ const displayToast = (message, duration = 2000) => {
   setTimeout(() => { showToast.value = false }, duration)
 }
 
-const getMediaUrl = (path) => path?.startsWith("http") ? path : `http://localhost:8000/storage/${path}`
 const openModal = () => showModal.value = true
 
 const handleShared = (postData) => {
@@ -103,26 +113,20 @@ const handleShared = (postData) => {
   showModal.value = false
 }
 
-// Post Options
+// -------------------- POSTS -------------------- //
 const toggleOptions = (postId) => openPostId.value = openPostId.value === postId ? null : postId
 const editPost = (post) => { editPostId.value = post.id; editDescription.value = post.description; openPostId.value = null }
 const cancelEdit = () => { editPostId.value = null; editDescription.value = "" }
+
 const updatePost = async (post, desc) => {
   const trimmed = desc?.trim()
-
   if (!trimmed || trimmed.length === 0) {
     console.warn("⚠️ Description cannot be empty")
     return
   }
 
   try {
-    const token = localStorage.getItem("token")
-    const res = await axios.put(
-      `http://localhost:8000/api/posts/${post.id}`,
-      { description: trimmed },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-
+    const res = await updatePostApi(post.id, trimmed)
     post.description = res.data.post.description
     cancelEdit()
   } catch (err) {
@@ -130,78 +134,81 @@ const updatePost = async (post, desc) => {
   }
 }
 
-
 const deletePost = async (post) => {
   if (!confirm("Are you sure?")) return
   try {
-    const token = localStorage.getItem("token")
-    await axios.delete(`http://localhost:8000/api/posts/${post.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    await deletePostApi(post.id)
     posts.value = posts.value.filter(p => p.id !== post.id)
     openPostId.value = null
-  } catch { alert("Failed to delete post") }
+  } catch {
+    alert("Failed to delete post")
+  }
 }
 
-// Likes
+// -------------------- LIKES -------------------- //
 const toggleLike = async (post) => {
   try {
-    const token = localStorage.getItem("token")
     if (!post.liked) {
-      const res = await axios.post("http://localhost:8000/api/like", { post_id: post.id }, { headers: { Authorization: `Bearer ${token}` } })
+      const res = await likePostApi(post.id)
       post.liked = true
       post.likes_count++
       post.like_id = res.data.like.id
       post.like_users = [currentUser.value, ...post.like_users.filter(u => u.id !== currentUser.value.id)]
     } else {
       if (!post.like_id) return
-      await axios.delete(`http://localhost:8000/api/like/${post.like_id}`, { headers: { Authorization: `Bearer ${token}` } })
+      await unlikePostApi(post.like_id)
       post.liked = false
       post.likes_count = Math.max(0, post.likes_count - 1)
       post.like_id = null
       post.like_users = post.like_users.filter(u => u.id !== currentUser.value.id)
     }
-  } catch { displayToast("Failed to toggle like ❌") }
+  } catch {
+    displayToast("Failed to toggle like ❌")
+  }
 }
 
-// Comments
+// -------------------- COMMENTS -------------------- //
 const toggleCommentBox = (post) => post.showCommentBox = !post.showCommentBox
+
 const submitComment = async (post) => {
   if (!post.newComment?.trim()) return
   try {
-    const token = localStorage.getItem("token")
-    const res = await axios.post(`http://localhost:8000/api/posts/${post.id}/comments`, { post_id: post.id, comment_text: post.newComment }, { headers: { Authorization: `Bearer ${token}` } })
+    const res = await addCommentApi(post.id, post.newComment)
     post.comments.push({ id: res.data.comment.id, text: res.data.comment.comment_text, user: currentUser.value })
     post.newComment = ""
     displayToast("Comment added ✅")
-  } catch { displayToast("Failed to add comment ❌") }
+  } catch {
+    displayToast("Failed to add comment ❌")
+  }
 }
+
 const startEditComment = (comment) => { editCommentId.value = comment.id; editCommentText.value = comment.text }
+
 const updateComment = async (post, comment) => {
   if (!editCommentText.value.trim()) return
   try {
-    const token = localStorage.getItem("token")
-    await axios.put(`http://localhost:8000/api/comments/${comment.id}`, { comment_text: editCommentText.value }, { headers: { Authorization: `Bearer ${token}` } })
+    await updateCommentApi(comment.id, editCommentText.value)
     comment.text = editCommentText.value
     editCommentId.value = null
     editCommentText.value = ""
     displayToast("Comment updated ✅")
-  } catch { displayToast("Failed to update comment ❌") }
+  } catch {
+    displayToast("Failed to update comment ❌")
+  }
 }
+
 const deleteComment = async (post, comment) => {
   if (!confirm("Delete this comment?")) return
   try {
-    const token = localStorage.getItem("token")
-    await axios.delete(`http://localhost:8000/api/comments/${comment.id}`, { headers: { Authorization: `Bearer ${token}` } })
+    await deleteCommentApi(comment.id)
     post.comments = post.comments.filter(c => c.id !== comment.id)
     displayToast("Comment deleted ✅")
-  } catch { displayToast("Failed to delete comment ❌") }
+  } catch {
+    displayToast("Failed to delete comment ❌")
+  }
 }
 
-// Click outside dropdown
-const handleClickOutside = (event) => {
-  const dropdowns = document.querySelectorAll(".post-dropdown")
-  if (![...dropdowns].some(el => el.contains(event.target))) openPostId.value = null
-}
-
+// -------------------- POSTS FETCH -------------------- //
 const currentPage = ref(1)
 const lastPage = ref(1)
 
@@ -211,10 +218,7 @@ const fetchPosts = async (page = 1) => {
   currentUser.value = JSON.parse(localStorage.getItem("user") || "{}")
 
   try {
-    const res = await axios.get(`http://localhost:8000/api/allposts?page=${page}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-
+    const res = await fetchPostsApi(page)
     currentPage.value = res.data.current_page
     lastPage.value = res.data.last_page
 
@@ -233,12 +237,19 @@ const fetchPosts = async (page = 1) => {
   }
 }
 
+// -------------------- LIFECYCLE -------------------- //
+const handleClickOutside = (event) => {
+  const dropdowns = document.querySelectorAll(".post-dropdown")
+  if (![...dropdowns].some(el => el.contains(event.target))) openPostId.value = null
+}
+
 onMounted(() => {
   fetchPosts(currentPage.value)
   document.addEventListener("click", handleClickOutside)
 })
 
+onBeforeUnmount(() => document.removeEventListener("click", handleClickOutside))
 
 const logout = () => { localStorage.removeItem('token'); router.push('/login') }
-onBeforeUnmount(() => document.removeEventListener("click", handleClickOutside))
 </script>
+
