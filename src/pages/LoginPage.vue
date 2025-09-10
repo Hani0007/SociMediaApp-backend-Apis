@@ -42,21 +42,18 @@ import InputField from '@/components/InputField.vue'
 import Button from '@/components/Button.vue'
 import { reactive, ref } from 'vue'
 import axios from 'axios'
-import { useRouter } from 'vue-router'   // <-- import router hook
+import { useRouter } from 'vue-router'
 
-const router = useRouter()  // <-- get router instance
+const router = useRouter()
 
-// Reactive form data
 const form = reactive({
   email: '',
   password: ''
 })
 
-// Error & success messages
 const error = ref('')
 const success = ref('')
 
-// Login API call
 const login = async () => {
   error.value = ''
   success.value = ''
@@ -67,25 +64,30 @@ const login = async () => {
       password: form.password
     })
 
+    console.log("Full login response:", response.data) // 🔹 debug
+
     success.value = 'Login successful!'
 
-    // Store token if returned from Laravel
+    // Store token
     if (response.data.access_token) {
       localStorage.setItem('token', response.data.access_token)
     }
-
-    // Store user info (so we can compare ownership later)
-    if (response.data.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.user))
-    }
-
-    // ✅ Redirect to /feed
+    // Store user info from `data` field
+if (response.data.data) {
+  localStorage.setItem('user', JSON.stringify(response.data.data))
+  const storedUser = JSON.parse(localStorage.getItem('user'))
+  console.log("Stored user from localStorage:", storedUser)
+} else {
+  console.warn("No user object returned from API")
+}
+    // Redirect
     router.push('/feed')
 
   } catch (err) {
-    if (err.response && err.response.data.message) {
+    console.error("Login error:", err)
+    if (err.response?.data?.message) {
       error.value = err.response.data.message
-    } else if (err.response && err.response.data.errors) {
+    } else if (err.response?.data?.errors) {
       error.value = Object.values(err.response.data.errors).flat().join(' ')
     } else {
       error.value = 'Something went wrong.'
@@ -93,6 +95,7 @@ const login = async () => {
   }
 }
 </script>
+
 
 
 <style scoped>
